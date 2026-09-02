@@ -296,10 +296,44 @@
   </div>
 
   <!-- Модальное окно: добавить в желания вручную -->
+  <!-- Модальное окно: просмотр карточки книги -->
+  <div id="view-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="view-header">
+        <div id="view-cover" class="view-cover book-cover-wrap"></div>
+        <div class="view-header-info">
+          <h2 id="view-title"></h2>
+          <p id="view-author" class="view-author"></p>
+          <p id="view-meta" class="book-meta"></p>
+          <div id="view-stars"></div>
+          <div id="view-badges" class="badge-row"></div>
+        </div>
+      </div>
+
+      <div id="view-lend-info"></div>
+
+      <div id="view-notes-section">
+        <label class="field-label">Заметки</label>
+        <p id="view-notes" class="view-notes-text"></p>
+      </div>
+
+      <div id="view-quotes-section">
+        <label class="field-label">Цитаты и быстрые заметки</label>
+        <div id="view-quotes-list" class="quotes-list view-quotes-list"></div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="view-close-btn">Закрыть</button>
+        <button type="button" class="btn btn-primary" id="view-edit-btn">Изменить</button>
+      </div>
+    </div>
+  </div>
+
   <div id="wishlist-modal" class="modal-overlay hidden">
     <div class="modal modal-small">
-      <h2>Добавить в желания</h2>
+      <h2 id="wishlist-modal-title">Добавить в желания</h2>
       <form id="wishlist-form">
+        <input type="hidden" id="wishlist-id">
         <label class="field-label">Название *</label>
         <input type="text" id="wishlist-title" required>
         <label class="field-label">Автор</label>
@@ -308,7 +342,7 @@
         <input type="text" id="wishlist-cover" placeholder="Необязательно">
         <div class="modal-actions">
           <button type="button" class="btn btn-ghost" id="wishlist-cancel-btn">Отмена</button>
-          <button type="submit" class="btn btn-primary">Добавить</button>
+          <button type="submit" class="btn btn-primary">Сохранить</button>
         </div>
       </form>
     </div>

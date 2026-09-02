@@ -688,6 +688,69 @@ html[data-theme="dark"] .lend-info.overdue {
 .like-btn { background: var(--pink); color: #8A2F55; }
 .like-btn:hover { background: var(--pink-dark); }
 
+.like-icon-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2;
+  box-shadow: 0 2px 6px rgba(90,70,110,0.15);
+}
+.like-icon-btn .heart-outline { display: block; }
+.like-icon-btn .heart-filled { display: none; }
+.like-icon-btn.liked .heart-outline { display: none; }
+.like-icon-btn.liked .heart-filled { display: block; }
+.like-icon-btn.liked { background: var(--pink); }
+
+/* ---------- Индикатор цитат на карточке ---------- */
+.badge-quotes {
+  background: var(--surface-2);
+  color: var(--text-light);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.badge-quotes svg { flex: none; }
+
+.book-card { cursor: pointer; }
+.book-card button, .book-card select { cursor: pointer; }
+
+/* ---------- Модальное окно просмотра книги ---------- */
+.view-header {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+.view-cover {
+  width: 110px;
+  aspect-ratio: 2 / 3;
+  border-radius: 12px;
+  flex: none;
+}
+.view-cover img { border-radius: 12px; }
+.view-header-info { min-width: 0; }
+.view-header-info h2 { margin: 0 0 2px; font-size: 18px; line-height: 1.25; }
+.view-author { color: var(--text-light); font-size: 13.5px; margin: 0 0 4px; }
+
+#view-notes-section, #view-quotes-section { margin-top: 6px; }
+.view-notes-text {
+  font-size: 13.5px;
+  color: var(--text);
+  white-space: pre-wrap;
+  line-height: 1.5;
+  margin: 0;
+}
+.view-quotes-list { max-height: 220px; }
+.view-empty-hint { color: var(--text-light); font-size: 13px; }
+
 /* ---------- Тост-уведомление ---------- */
 .toast {
   position: fixed;
@@ -704,8 +767,76 @@ html[data-theme="dark"] .lend-info.overdue {
 }
 html[data-theme="dark"] .toast { background: #EEE9F7; color: #292233; }
 
-@media (max-width: 600px) {
-  .topbar, .stats-row, .toolbar, .book-grid { padding-left: 18px; padding-right: 18px; }
-  .form-grid { grid-template-columns: 1fr; }
+@media (max-width: 640px) {
+  html, body { overflow-x: hidden; }
+
+  .topbar { padding: 14px 16px; gap: 10px; }
+  .topbar-right { flex-wrap: wrap; justify-content: flex-start; width: 100%; row-gap: 8px; }
+  .library-switcher { order: -1; flex: 1 1 100%; max-width: none; }
+  .user-email { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .stats-row, .toolbar, .book-grid { padding-left: 16px; padding-right: 16px; }
+  .stats-row { gap: 10px; }
+  .stat-card { flex: 1 1 calc(50% - 5px); min-width: 0; }
+
+  .toolbar { gap: 8px; }
+  .search-input { flex: 1 1 100%; }
+  .filter-select { flex: 1 1 calc(50% - 4px); min-width: 0; }
+  .view-toggle { order: 3; }
+  #select-mode-btn { flex: 1 1 auto; order: 4; }
+  #add-book-btn { flex: 1 1 100%; order: 5; }
+
+  .book-grid { grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); gap: 12px; }
+  .book-title { font-size: 13.5px; }
+  .book-author { font-size: 12px; }
+  .card-actions { flex-wrap: wrap; }
+  .card-actions .btn { flex: 1 1 100%; }
+
+  /* Модалки на мобильном выезжают снизу как шторка */
+  .modal-overlay { padding: 0; align-items: flex-end; }
+  .modal {
+    max-width: 100%;
+    width: 100%;
+    max-height: 88vh;
+    border-radius: 20px 20px 0 0;
+    padding: 22px 18px 26px;
+  }
+  .modal-small { max-width: 100%; }
+  .form-grid { grid-template-columns: 100px 1fr; }
+  .form-grid-3 { grid-template-columns: 1fr 1fr; }
   .cover-preview { width: 90px; height: 120px; }
+  .isbn-row { flex-wrap: wrap; }
+  .isbn-row button { flex: 1 1 100%; }
+
+  .bulk-bar { left: 12px; right: 12px; bottom: 12px; transform: none; width: auto; flex-wrap: wrap; justify-content: center; }
+
+  .book-grid.view-list .book-card { padding: 8px 10px; gap: 10px; }
+  .book-grid.view-list .card-actions { flex-wrap: nowrap; }
+  .book-grid.view-list .card-actions .btn { flex: none; font-size: 12px; padding: 7px 8px; }
+
+  .quotes-add-row { flex-wrap: wrap; }
+  .quotes-add-row button { flex: 1 1 100%; }
+
+  .shares-list, .quotes-list { max-height: 120px; }
+
+  /* Список на мобильном — компактные вертикальные карточки, а не строки */
+  .book-grid.view-list .book-card {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 14px;
+  }
+  .book-grid.view-list .book-cover-wrap {
+    width: 70px;
+    aspect-ratio: 2 / 3;
+  }
+  .book-grid.view-list .card-actions {
+    flex-wrap: wrap;
+    margin-top: 6px;
+  }
+  .book-grid.view-list .card-actions .btn { flex: 1 1 auto; }
+}
+
+@media (max-width: 380px) {
+  .book-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+  .form-grid-3 { grid-template-columns: 1fr; }
 }

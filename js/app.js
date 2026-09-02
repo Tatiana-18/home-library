@@ -23,6 +23,7 @@ let sharedWithMeList = []; // библиотеки, к которым имею �
 let unsubscribeItems = null;
 let unsubscribeShares = null;
 let unsubscribeSharedWithMe = null;
+let unsubscribeWishlist = null;
 
 // currentView: {type:'mine'} | {type:'wishlist'} | {type:'shared', ownerUid, ownerEmail}
 let currentView = { type: 'mine' };
@@ -136,6 +137,22 @@ const statsModal = document.getElementById('stats-modal');
 const statsChart = document.getElementById('stats-chart');
 const statsCloseBtn = document.getElementById('stats-close-btn');
 
+const viewModal = document.getElementById('view-modal');
+const viewCover = document.getElementById('view-cover');
+const viewTitle = document.getElementById('view-title');
+const viewAuthor = document.getElementById('view-author');
+const viewMeta = document.getElementById('view-meta');
+const viewStars = document.getElementById('view-stars');
+const viewBadges = document.getElementById('view-badges');
+const viewLendInfo = document.getElementById('view-lend-info');
+const viewNotesSection = document.getElementById('view-notes-section');
+const viewNotes = document.getElementById('view-notes');
+const viewQuotesSection = document.getElementById('view-quotes-section');
+const viewQuotesList = document.getElementById('view-quotes-list');
+const viewCloseBtn = document.getElementById('view-close-btn');
+const viewEditBtn = document.getElementById('view-edit-btn');
+let viewedBook = null;
+
 const exportCsvBtn = document.getElementById('export-csv-btn');
 
 const shareBtn = document.getElementById('share-btn');
@@ -147,7 +164,9 @@ const sharesListEl = document.getElementById('shares-list');
 const shareCloseBtn = document.getElementById('share-close-btn');
 
 const wishlistModal = document.getElementById('wishlist-modal');
+const wishlistModalTitle = document.getElementById('wishlist-modal-title');
 const wishlistForm = document.getElementById('wishlist-form');
+const wishlistIdInput = document.getElementById('wishlist-id');
 const wishlistTitleInput = document.getElementById('wishlist-title');
 const wishlistAuthorInput = document.getElementById('wishlist-author');
 const wishlistCoverInput = document.getElementById('wishlist-cover');
@@ -203,6 +222,7 @@ const READ_STATUS_LABELS = { want: 'Хочу прочитать', reading: 'Чи
 const READ_STATUS_CLASS = { want: 'badge-want', reading: 'badge-reading', done: 'badge-done' };
 
 const COVER_PLACEHOLDER_SVG = `<svg width="34" height="34" viewBox="0 0 24 24" fill="none"><path d="M4 4.5C4 3.67 4.67 3 5.5 3H12V21H5.5C4.67 21 4 20.33 4 19.5V4.5Z" fill="#C9B6E4"/><path d="M12 3H18.5C19.33 3 20 3.67 20 4.5V19.5C20 20.33 19.33 21 18.5 21H12V3Z" fill="#B8E3D8"/></svg>`;
+const QUOTE_ICON_SVG = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M7 8C5 8 4 9.5 4 11.5C4 13.5 5.3 15 7.2 15C7.2 17 6 18.5 4 19" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 8C14 8 13 9.5 13 11.5C13 13.5 14.3 15 16.2 15C16.2 17 15 18.5 13 19" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 function escapeHtml(str) {
   const div = document.createElement('div');
@@ -317,6 +337,7 @@ onAuthStateChanged(auth, async (user) => {
     librarySwitcher.value = 'mine';
     subscribeShares();
     subscribeSharedWithMe();
+    subscribeWishlist();
     subscribeCurrentView();
   } else {
     appScreen.classList.add('hidden');
@@ -328,12 +349,26 @@ onAuthStateChanged(auth, async (user) => {
     if (unsubscribeItems) unsubscribeItems();
     if (unsubscribeShares) unsubscribeShares();
     if (unsubscribeSharedWithMe) unsubscribeSharedWithMe();
+    if (unsubscribeWishlist) unsubscribeWishlist();
     allBooks = [];
     allWishlist = [];
     sharesList = [];
     sharedWithMeList = [];
   }
 });
+
+// ---------- Постоянная подписка на желания (нужна и для раздела «Желания»,
+// и для отображения лайков в чужих библиотеках) ----------
+function subscribeWishlist() {
+  if (unsubscribeWishlist) unsubscribeWishlist();
+  const q = query(wishlistCollectionRef(), orderBy('addedAt', 'desc'));
+  unsubscribeWishlist = onSnapshot(q, (snapshot) => {
+    allWishlist = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (currentView.type === 'wishlist' || currentView.type === 'shared') {
+      renderCurrentView();
+    }
+  }, (err) => console.warn(err));
+}
 
 async function ensureEmailMapping(user) {
   try {
@@ -352,14 +387,7 @@ function subscribeCurrentView() {
   updateToolbarForView();
 
   if (currentView.type === 'wishlist') {
-    const q = query(wishlistCollectionRef(), orderBy('addedAt', 'desc'));
-    unsubscribeItems = onSnapshot(q, (snapshot) => {
-      allWishlist = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      renderCurrentView();
-    }, (error) => {
-      console.error(error);
-      showToast('Ошибка загрузки желаний');
-    });
+    renderCurrentView();
   } else {
     const ownerUid = currentView.type === 'shared' ? currentView.ownerUid : currentUser.uid;
     const q = query(booksCollectionRef(ownerUid), orderBy('addedAt', 'desc'));
@@ -588,7 +616,7 @@ function renderBooks() {
 
   sorted.forEach(b => {
     if (isShared) {
-      document.getElementById(`like-${b.id}`)?.addEventListener('click', () => addToWishlistFromShared(b));
+      document.getElementById(`like-${b.id}`)?.addEventListener('click', () => toggleLikeFromShared(b));
     } else {
       document.getElementById(`edit-${b.id}`)?.addEventListener('click', () => openEditModal(b));
       document.getElementById(`delete-${b.id}`)?.addEventListener('click', () => handleDelete(b));
@@ -597,6 +625,13 @@ function renderBooks() {
       const check = document.getElementById(`check-${b.id}`);
       check?.addEventListener('click', (e) => { e.stopPropagation(); toggleSelect(b.id); });
     }
+
+    const card = bookGrid.querySelector(`.book-card[data-id="${b.id}"]`);
+    card?.addEventListener('click', (e) => {
+      if (e.target.closest('button') || e.target.closest('.select-check')) return;
+      if (selectMode && !isShared) { toggleSelect(b.id); return; }
+      openViewModal(b, isShared);
+    });
   });
 
   if (isMine) applySelectModeClasses();
@@ -616,11 +651,15 @@ function starRowHtml(rating) {
 function bookCardHtml(b, readOnly) {
   const isLent = b.status === 'lent';
   const overdue = isOverdue(b);
+  const isLiked = readOnly && allWishlist.some(w => w.sourceOwnerUid === currentView.ownerUid && w.sourceBookId === b.id);
 
-  const actionsHtml = readOnly ? `
-      <div class="card-actions">
-        <button class="btn like-btn" id="like-${b.id}">♥ В желания</button>
-      </div>` : `
+  const likeButton = readOnly ? `
+      <button class="like-icon-btn ${isLiked ? 'liked' : ''}" id="like-${b.id}" title="${isLiked ? 'Убрать из желаний' : 'Добавить в желания'}">
+        <svg class="heart-outline" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 20C12 20 4 15 4 9.5C4 6.5 6.2 4.5 8.8 4.5C10.2 4.5 11.4 5.2 12 6.2C12.6 5.2 13.8 4.5 15.2 4.5C17.8 4.5 20 6.5 20 9.5C20 15 12 20 12 20Z" stroke="#8A2F55" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        <svg class="heart-filled" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 20C12 20 4 15 4 9.5C4 6.5 6.2 4.5 8.8 4.5C10.2 4.5 11.4 5.2 12 6.2C12.6 5.2 13.8 4.5 15.2 4.5C17.8 4.5 20 6.5 20 9.5C20 15 12 20 12 20Z" fill="#8A2F55"/></svg>
+      </button>` : '';
+
+  const actionsHtml = readOnly ? '' : `
       <div class="card-actions">
         <button class="btn btn-ghost" id="edit-${b.id}">Изменить</button>
         ${isLent
@@ -639,6 +678,7 @@ function bookCardHtml(b, readOnly) {
   return `
     <div class="book-card" data-id="${b.id}">
       ${selectCheck}
+      ${likeButton}
       <div class="book-cover-wrap">${coverHtml(b.cover)}</div>
       <div>
         <p class="book-title">${escapeHtml(b.title || '')}</p>
@@ -651,6 +691,7 @@ function bookCardHtml(b, readOnly) {
           ${readOnly ? '' : `<span class="badge ${isLent ? 'badge-lent' : 'badge-available'}">${isLent ? 'Выдано' : 'В наличии'}</span>`}
           ${overdue && !readOnly ? `<span class="badge badge-overdue">Просрочено</span>` : ''}
           ${b.readStatus ? `<span class="badge ${READ_STATUS_CLASS[b.readStatus]}">${READ_STATUS_LABELS[b.readStatus]}</span>` : ''}
+          ${b.quotes && b.quotes.length ? `<span class="badge badge-quotes">${QUOTE_ICON_SVG} ${b.quotes.length}</span>` : ''}
         </div>
         ${b.notes ? `<p class="book-notes">${escapeHtml(b.notes)}</p>` : ''}
         ${isLent && !readOnly ? `
@@ -678,6 +719,7 @@ function renderWishlist() {
 
   filtered.forEach(w => {
     document.getElementById(`wish-remove-${w.id}`)?.addEventListener('click', () => handleWishlistRemove(w.id));
+    document.getElementById(`wish-edit-${w.id}`)?.addEventListener('click', () => openWishlistModal(w));
   });
 }
 
@@ -691,15 +733,15 @@ function wishCardHtml(w) {
         ${w.fromLibrary ? `<p class="book-meta">Из библиотеки: ${escapeHtml(w.fromLibrary)}</p>` : ''}
       </div>
       <div class="card-actions">
-        <button class="btn btn-ghost" id="wish-remove-${w.id}">Убрать из желаний</button>
+        <button class="btn btn-ghost" id="wish-edit-${w.id}">Изменить</button>
+        <button class="btn btn-secondary" id="wish-remove-${w.id}">Убрать</button>
       </div>
     </div>`;
 }
 
 addBookBtn.addEventListener('click', () => {
   if (currentView.type === 'wishlist') {
-    wishlistForm.reset();
-    wishlistModal.classList.remove('hidden');
+    openWishlistModal(null);
   } else {
     openAddModal();
   }
@@ -707,37 +749,69 @@ addBookBtn.addEventListener('click', () => {
 
 wishlistCancelBtn.addEventListener('click', () => wishlistModal.classList.add('hidden'));
 
+function openWishlistModal(item) {
+  wishlistForm.reset();
+  if (item) {
+    wishlistModalTitle.textContent = 'Изменить желание';
+    wishlistIdInput.value = item.id;
+    wishlistTitleInput.value = item.title || '';
+    wishlistAuthorInput.value = item.author || '';
+    wishlistCoverInput.value = item.cover || '';
+  } else {
+    wishlistModalTitle.textContent = 'Добавить в желания';
+    wishlistIdInput.value = '';
+  }
+  wishlistModal.classList.remove('hidden');
+}
+
 wishlistForm.addEventListener('submit', async (e) => {
   e.preventDefault();
+  const id = wishlistIdInput.value;
+  const data = {
+    title: wishlistTitleInput.value.trim(),
+    author: wishlistAuthorInput.value.trim(),
+    cover: toHttps(wishlistCoverInput.value.trim())
+  };
   try {
-    await addDoc(wishlistCollectionRef(), {
-      title: wishlistTitleInput.value.trim(),
-      author: wishlistAuthorInput.value.trim(),
-      cover: toHttps(wishlistCoverInput.value.trim()),
-      fromLibrary: '',
-      addedAt: serverTimestamp()
-    });
+    if (id) {
+      await updateDoc(doc(db, 'users', currentUser.uid, 'wishlist', id), data);
+      showToast('Желание обновлено');
+    } else {
+      await addDoc(wishlistCollectionRef(), {
+        ...data,
+        fromLibrary: '',
+        addedAt: serverTimestamp()
+      });
+      showToast('Добавлено в желания');
+    }
     wishlistModal.classList.add('hidden');
-    showToast('Добавлено в желания');
   } catch (err) {
     console.error(err);
-    showToast('Не удалось добавить');
+    showToast('Не удалось сохранить');
   }
 });
 
-async function addToWishlistFromShared(book) {
+async function toggleLikeFromShared(book) {
+  const existing = allWishlist.find(w => w.sourceOwnerUid === currentView.ownerUid && w.sourceBookId === book.id);
   try {
-    await addDoc(wishlistCollectionRef(), {
-      title: book.title || '',
-      author: book.author || '',
-      cover: book.cover || '',
-      fromLibrary: currentView.ownerEmail || '',
-      addedAt: serverTimestamp()
-    });
-    showToast('Добавлено в ваши желания');
+    if (existing) {
+      await deleteDoc(doc(db, 'users', currentUser.uid, 'wishlist', existing.id));
+      showToast('Убрано из желаний');
+    } else {
+      await addDoc(wishlistCollectionRef(), {
+        title: book.title || '',
+        author: book.author || '',
+        cover: book.cover || '',
+        fromLibrary: currentView.ownerEmail || '',
+        sourceOwnerUid: currentView.ownerUid,
+        sourceBookId: book.id,
+        addedAt: serverTimestamp()
+      });
+      showToast('Добавлено в желания');
+    }
   } catch (err) {
     console.error(err);
-    showToast('Не удалось добавить в желания');
+    showToast('Не удалось обновить желания');
   }
 }
 
@@ -877,6 +951,59 @@ coverUploadInput.addEventListener('change', () => {
     img.src = e.target.result;
   };
   reader.readAsDataURL(file);
+});
+
+// ---------- Просмотр карточки книги ----------
+function openViewModal(book, readOnly) {
+  viewedBook = book;
+  viewCover.innerHTML = coverHtml(book.cover);
+  viewTitle.textContent = book.title || '';
+  viewAuthor.textContent = book.author || '';
+  viewMeta.innerHTML = bookMetaHtml(book);
+  viewStars.innerHTML = starRowHtml(book.rating);
+
+  const isLent = book.status === 'lent';
+  const overdue = isOverdue(book);
+  const badges = [];
+  if (book.genre) badges.push(`<span class="badge badge-genre">${escapeHtml(book.genre)}</span>`);
+  if (book.shelf) badges.push(`<span class="badge badge-shelf">${escapeHtml(book.shelf)}</span>`);
+  if (!readOnly) badges.push(`<span class="badge ${isLent ? 'badge-lent' : 'badge-available'}">${isLent ? 'Выдано' : 'В наличии'}</span>`);
+  if (overdue && !readOnly) badges.push(`<span class="badge badge-overdue">Просрочено</span>`);
+  if (book.readStatus) badges.push(`<span class="badge ${READ_STATUS_CLASS[book.readStatus]}">${READ_STATUS_LABELS[book.readStatus]}</span>`);
+  viewBadges.innerHTML = badges.join('');
+
+  viewLendInfo.innerHTML = (isLent && !readOnly) ? `
+    <div class="lend-info ${overdue ? 'overdue' : ''}">
+      Взял(а): <b>${escapeHtml(book.borrower || '')}</b><br>
+      С ${formatDate(book.lendDate)}${book.dueDate ? ` до ${formatDate(book.dueDate)}` : ''}
+    </div>` : '';
+
+  if (book.notes) {
+    viewNotesSection.classList.remove('hidden');
+    viewNotes.textContent = book.notes;
+  } else {
+    viewNotesSection.classList.add('hidden');
+  }
+
+  const quotes = Array.isArray(book.quotes) ? book.quotes : [];
+  if (quotes.length) {
+    viewQuotesSection.classList.remove('hidden');
+    viewQuotesList.innerHTML = quotes.map(q => `
+      <div class="quote-item">
+        <div><span class="quote-text">${escapeHtml(q.text)}</span><span class="quote-date">${formatDate(q.date)}</span></div>
+      </div>`).join('');
+  } else {
+    viewQuotesSection.classList.add('hidden');
+  }
+
+  viewEditBtn.classList.toggle('hidden', readOnly);
+  viewModal.classList.remove('hidden');
+}
+
+viewCloseBtn.addEventListener('click', () => viewModal.classList.add('hidden'));
+viewEditBtn.addEventListener('click', () => {
+  viewModal.classList.add('hidden');
+  if (viewedBook) openEditModal(viewedBook);
 });
 
 // ---------- Добавление / редактирование книги ----------
