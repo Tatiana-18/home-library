@@ -1,0 +1,410 @@
+:root {
+  --bg: #FBF7F4;
+  --surface: #FFFFFF;
+  --text: #4A4458;
+  --text-light: #9089A0;
+  --border: #ECE5F0;
+
+  --lavender: #C9B6E4;
+  --lavender-dark: #A98FD2;
+  --mint: #B8E3D8;
+  --mint-dark: #8FCDBC;
+  --peach: #FBD8C4;
+  --peach-dark: #F3B996;
+  --blue: #C9E4F6;
+  --blue-dark: #9FCBE8;
+  --pink: #F6C9DA;
+
+  --shadow: 0 4px 16px rgba(90, 70, 110, 0.08);
+  --shadow-hover: 0 8px 24px rgba(90, 70, 110, 0.14);
+  --radius: 18px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: 'Nunito', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.hidden { display: none !important; }
+
+/* ---------- Экран входа ---------- */
+#login-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.login-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 40px 36px;
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.brand h1 {
+  font-size: 22px;
+  margin: 0;
+  color: var(--text);
+}
+
+.subtitle {
+  color: var(--text-light);
+  margin: 8px 0 24px;
+  font-size: 14px;
+}
+
+#login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+}
+
+.error-text {
+  color: #D98C8C;
+  font-size: 13px;
+  min-height: 18px;
+  margin: 2px 0 0;
+}
+
+.hint-text {
+  color: var(--text-light);
+  font-size: 12.5px;
+  margin: 4px 0 0;
+  min-height: 16px;
+}
+
+/* ---------- Вкладки вход / регистрация ---------- */
+.auth-tabs {
+  display: flex;
+  background: #F3EFF5;
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 20px;
+}
+
+.auth-tab {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 9px 0;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--text-light);
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.auth-tab.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 2px 6px rgba(90, 70, 110, 0.08);
+}
+
+.switch-link {
+  text-align: center;
+  font-size: 12.5px;
+  margin: 10px 0 0;
+}
+
+.switch-link a {
+  color: var(--lavender-dark);
+  text-decoration: none;
+}
+.switch-link a:hover { text-decoration: underline; }
+
+/* ---------- Инпуты и кнопки ---------- */
+input[type="text"], input[type="email"], input[type="password"], input[type="date"], select, textarea {
+  font-family: inherit;
+  font-size: 14px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  background: #FCFBFD;
+  color: var(--text);
+  outline: none;
+  width: 100%;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--lavender);
+}
+
+.btn {
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 11px 20px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.15s ease;
+  white-space: nowrap;
+}
+.btn:active { transform: scale(0.97); }
+
+.btn-primary {
+  background: var(--lavender);
+  color: #3C3453;
+}
+.btn-primary:hover { background: var(--lavender-dark); }
+
+.btn-secondary {
+  background: var(--blue);
+  color: #294A5F;
+}
+.btn-secondary:hover { background: var(--blue-dark); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-light);
+  border: 1.5px solid var(--border);
+}
+.btn-ghost:hover { background: #F3EFF5; }
+
+.btn-block { width: 100%; }
+
+.btn-icon {
+  background: #F3EFF5;
+  border-radius: 10px;
+  border: none;
+  padding: 7px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-icon:hover { background: var(--border); }
+.btn-icon.danger:hover { background: #FBDCDC; }
+
+/* ---------- Верхняя панель ---------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 36px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.user-email {
+  font-size: 13px;
+  color: var(--text-light);
+}
+
+/* ---------- Статистика ---------- */
+.stats-row {
+  display: flex;
+  gap: 16px;
+  padding: 24px 36px 0;
+  flex-wrap: wrap;
+}
+
+.stat-card {
+  flex: 1;
+  min-width: 140px;
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-mint { background: var(--mint); }
+.stat-peach { background: var(--peach); }
+.stat-blue { background: var(--blue); }
+
+.stat-value { font-size: 26px; font-weight: 800; color: #3C3453; }
+.stat-label { font-size: 13px; color: #574F6B; }
+
+/* ---------- Панель инструментов ---------- */
+.toolbar {
+  display: flex;
+  gap: 12px;
+  padding: 20px 36px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.search-input { flex: 2; min-width: 200px; }
+.filter-select { flex: 1; min-width: 140px; }
+
+/* ---------- Сетка книг ---------- */
+.book-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 20px;
+  padding: 0 36px 40px;
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--text-light);
+  padding: 60px 20px;
+  font-size: 15px;
+}
+
+.book-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+.book-card:hover {
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px);
+}
+
+.book-cover-wrap {
+  width: 100%;
+  height: 150px;
+  border-radius: 12px;
+  background: #F3EFF5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.book-cover-wrap img { width: 100%; height: 100%; object-fit: cover; }
+
+.book-title { font-size: 15px; font-weight: 700; margin: 0; line-height: 1.3; }
+.book-author { font-size: 13px; color: var(--text-light); margin: 0; }
+
+.badge-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.badge {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.badge-genre { background: var(--blue); color: #294A5F; }
+.badge-shelf { background: #F3EFF5; color: var(--text-light); }
+.badge-available { background: var(--mint); color: #275C4A; }
+.badge-lent { background: var(--peach); color: #8A4A22; }
+
+.lend-info {
+  font-size: 12.5px;
+  color: var(--text-light);
+  background: #FBF7F4;
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+.lend-info b { color: var(--text); }
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 6px;
+}
+.card-actions .btn { flex: 1; font-size: 13px; padding: 8px 10px; }
+
+/* ---------- Модальные окна ---------- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(60, 52, 83, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 100;
+}
+
+.modal {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 28px 30px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-hover);
+}
+
+.modal-small { max-width: 380px; }
+
+.modal h2 { margin: 0 0 18px; font-size: 19px; }
+
+.field-label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-light);
+  margin: 12px 0 5px;
+}
+
+.isbn-row { display: flex; gap: 8px; }
+.isbn-row input { flex: 1; }
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 16px;
+  margin-top: 6px;
+}
+
+.cover-preview {
+  width: 100px;
+  height: 140px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: #F3EFF5;
+}
+
+.form-fields { display: flex; flex-direction: column; }
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+/* ---------- Тост-уведомление ---------- */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #3C3453;
+  color: #fff;
+  padding: 12px 22px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  box-shadow: var(--shadow-hover);
+  z-index: 200;
+}
+
+@media (max-width: 600px) {
+  .topbar, .stats-row, .toolbar, .book-grid { padding-left: 18px; padding-right: 18px; }
+  .form-grid { grid-template-columns: 1fr; }
+  .cover-preview { width: 90px; height: 120px; }
+}

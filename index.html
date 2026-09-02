@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Моя домашняя библиотека</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Экран входа -->
+  <section id="login-screen" class="screen">
+    <div class="login-card">
+      <div class="brand">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none"><path d="M4 4.5C4 3.67 4.67 3 5.5 3H12V21H5.5C4.67 21 4 20.33 4 19.5V4.5Z" fill="#C9B6E4"/><path d="M12 3H18.5C19.33 3 20 3.67 20 4.5V19.5C20 20.33 19.33 21 18.5 21H12V3Z" fill="#B8E3D8"/></svg>
+        <h1>Моя библиотека</h1>
+      </div>
+      <p class="subtitle">У каждого — своя личная библиотека</p>
+
+      <div class="auth-tabs">
+        <button type="button" id="tab-login" class="auth-tab active">Вход</button>
+        <button type="button" id="tab-register" class="auth-tab">Регистрация</button>
+      </div>
+
+      <form id="login-form">
+        <input type="email" id="login-email" placeholder="Email" autocomplete="username" required>
+        <input type="password" id="login-password" placeholder="Пароль" autocomplete="current-password" required>
+        <button type="submit" class="btn btn-primary btn-block">Войти</button>
+        <p id="login-error" class="error-text"></p>
+        <p class="switch-link">
+          <a href="#" id="forgot-password-link">Забыли пароль?</a>
+        </p>
+      </form>
+
+      <form id="register-form" class="hidden">
+        <input type="email" id="register-email" placeholder="Email" autocomplete="username" required>
+        <input type="password" id="register-password" placeholder="Пароль (минимум 6 символов)" autocomplete="new-password" required>
+        <input type="password" id="register-password-confirm" placeholder="Повторите пароль" autocomplete="new-password" required>
+        <button type="submit" class="btn btn-primary btn-block">Создать аккаунт</button>
+        <p id="register-error" class="error-text"></p>
+      </form>
+    </div>
+  </section>
+
+  <!-- Основной экран -->
+  <section id="app-screen" class="screen hidden">
+    <header class="topbar">
+      <div class="brand">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M4 4.5C4 3.67 4.67 3 5.5 3H12V21H5.5C4.67 21 4 20.33 4 19.5V4.5Z" fill="#C9B6E4"/><path d="M12 3H18.5C19.33 3 20 3.67 20 4.5V19.5C20 20.33 19.33 21 18.5 21H12V3Z" fill="#B8E3D8"/></svg>
+        <h1>Моя библиотека</h1>
+      </div>
+      <div class="topbar-right">
+        <span id="user-email" class="user-email"></span>
+        <button id="logout-btn" class="btn btn-ghost">Выйти</button>
+      </div>
+    </header>
+
+    <div class="stats-row" id="stats-row">
+      <div class="stat-card stat-mint">
+        <span class="stat-value" id="stat-total">0</span>
+        <span class="stat-label">Всего книг</span>
+      </div>
+      <div class="stat-card stat-peach">
+        <span class="stat-value" id="stat-lent">0</span>
+        <span class="stat-label">Выдано</span>
+      </div>
+      <div class="stat-card stat-blue">
+        <span class="stat-value" id="stat-available">0</span>
+        <span class="stat-label">В наличии</span>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <input type="text" id="search-input" class="search-input" placeholder="Поиск по названию или автору...">
+      <select id="genre-filter" class="filter-select">
+        <option value="">Все жанры</option>
+      </select>
+      <select id="status-filter" class="filter-select">
+        <option value="">Любой статус</option>
+        <option value="available">В наличии</option>
+        <option value="lent">Выдано</option>
+      </select>
+      <button id="add-book-btn" class="btn btn-primary">+ Добавить книгу</button>
+    </div>
+
+    <div id="empty-state" class="empty-state hidden">
+      <p>Пока в вашей библиотеке нет книг.</p>
+      <p>Нажмите «Добавить книгу», чтобы начать каталог.</p>
+    </div>
+
+    <div id="book-grid" class="book-grid"></div>
+  </section>
+
+  <!-- Модальное окно: добавить / редактировать книгу -->
+  <div id="book-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <h2 id="book-modal-title">Добавить книгу</h2>
+      <form id="book-form">
+        <input type="hidden" id="book-id">
+
+        <label class="field-label">ISBN (необязательно)</label>
+        <div class="isbn-row">
+          <input type="text" id="book-isbn" placeholder="Например, 9785171234567">
+          <button type="button" id="isbn-lookup-btn" class="btn btn-secondary">Найти</button>
+        </div>
+        <p id="isbn-status" class="hint-text"></p>
+
+        <div class="form-grid">
+          <div>
+            <label class="field-label">Обложка</label>
+            <img id="cover-preview" class="cover-preview" src="" alt="" >
+          </div>
+          <div class="form-fields">
+            <label class="field-label">Название *</label>
+            <input type="text" id="book-title" required>
+
+            <label class="field-label">Автор *</label>
+            <input type="text" id="book-author" required>
+
+            <label class="field-label">Жанр</label>
+            <input type="text" id="book-genre" list="genre-list" placeholder="Например, фантастика">
+            <datalist id="genre-list"></datalist>
+
+            <label class="field-label">Полка / место хранения</label>
+            <input type="text" id="book-shelf" placeholder="Например, стеллаж 2, полка 3">
+          </div>
+        </div>
+
+        <input type="hidden" id="book-cover">
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="book-cancel-btn">Отмена</button>
+          <button type="submit" class="btn btn-primary">Сохранить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Модальное окно: выдать книгу -->
+  <div id="lend-modal" class="modal-overlay hidden">
+    <div class="modal modal-small">
+      <h2>Выдать книгу</h2>
+      <form id="lend-form">
+        <input type="hidden" id="lend-book-id">
+        <label class="field-label">Кому выдана *</label>
+        <input type="text" id="lend-borrower" required placeholder="Имя друга или родственника">
+
+        <label class="field-label">Дата выдачи</label>
+        <input type="date" id="lend-date" required>
+
+        <label class="field-label">Вернуть до (необязательно)</label>
+        <input type="date" id="lend-due-date">
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="lend-cancel-btn">Отмена</button>
+          <button type="submit" class="btn btn-primary">Выдать</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
