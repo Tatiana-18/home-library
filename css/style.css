@@ -338,18 +338,27 @@ input:focus, select:focus, textarea:focus {
 
 .book-cover-wrap {
   width: 100%;
-  height: 150px;
+  aspect-ratio: 2 / 3;
   border-radius: 11px;
   background: var(--surface-2);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  position: relative;
 }
-.book-cover-wrap img { width: 100%; height: 100%; object-fit: cover; }
+.book-cover-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cover-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
 .book-title { font-size: 15px; font-weight: 700; margin: 0; line-height: 1.3; }
 .book-author { font-size: 13px; color: var(--text-light); margin: 0; }
+.book-meta { font-size: 11.5px; color: var(--text-light); margin: -4px 0 0; }
 
 .star-row { font-size: 14px; letter-spacing: 1px; color: var(--lavender-dark); }
 .star-row .empty { color: var(--border); }
@@ -472,6 +481,13 @@ html[data-theme="dark"] .lend-info.overdue {
   margin-top: 4px;
 }
 
+.form-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  margin-top: 4px;
+}
+
 .cover-preview {
   width: 100px;
   height: 140px;
@@ -517,6 +533,160 @@ html[data-theme="dark"] .lend-info.overdue {
   transition: width 0.4s ease;
 }
 .stats-empty { color: var(--text-light); font-size: 13.5px; text-align: center; padding: 20px 0; }
+
+/* ---------- Переключатель библиотек ---------- */
+.library-switcher { max-width: 220px; font-weight: 700; }
+
+/* ---------- Переключатель вида (сетка/список) ---------- */
+.view-toggle {
+  display: flex;
+  border: var(--border-w) solid var(--border);
+  border-radius: 11px;
+  overflow: hidden;
+}
+.view-toggle-btn {
+  border: none;
+  background: var(--surface);
+  color: var(--text-light);
+  padding: 9px 11px;
+  cursor: pointer;
+  display: flex;
+}
+.view-toggle-btn.active { background: var(--lavender); color: #3C3453; }
+
+.book-grid.view-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.book-grid.view-list .book-card {
+  flex-direction: row;
+  align-items: center;
+  padding: 10px 14px;
+  gap: 14px;
+}
+.book-grid.view-list .book-cover-wrap {
+  width: 44px;
+  aspect-ratio: 2 / 3;
+  flex: none;
+}
+.book-grid.view-list .book-notes,
+.book-grid.view-list .book-meta { display: none; }
+.book-grid.view-list .card-actions { margin-top: 0; padding-top: 0; flex: none; width: auto; }
+.book-grid.view-list .book-title, .book-grid.view-list .book-author { display: inline; }
+.book-grid.view-list .book-card > div:not(.book-cover-wrap):not(.card-actions):not(.select-check) {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---------- Выбор карточек для массовой выдачи ---------- */
+.select-check {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  border: 2px solid var(--surface);
+  background: rgba(255,255,255,0.85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2;
+}
+.book-card { position: relative; }
+.book-card.selectable .select-check { display: flex; }
+.book-card.selected { outline: 2px solid var(--lavender-dark); }
+.select-check.checked { background: var(--lavender-dark); }
+.select-check svg { display: none; }
+.select-check.checked svg { display: block; }
+
+.bulk-bar {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface);
+  border: var(--border-w) solid var(--border);
+  box-shadow: var(--shadow-hover);
+  border-radius: 14px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 150;
+  font-size: 13.5px;
+}
+
+/* ---------- Загрузка обложки с компьютера ---------- */
+.btn-upload {
+  display: block;
+  text-align: center;
+  margin-top: 8px;
+  font-size: 12px;
+  padding: 7px 6px;
+  cursor: pointer;
+}
+
+/* ---------- Цитаты ---------- */
+.quotes-add-row { display: flex; gap: 8px; margin-top: 4px; }
+.quotes-add-row input { flex: 1; }
+.quotes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+.quote-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+.quote-item .quote-text { flex: 1; }
+.quote-item .quote-date { font-size: 10.5px; color: var(--text-light); display: block; margin-top: 2px; }
+.quote-remove {
+  border: none;
+  background: transparent;
+  color: var(--text-light);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 2px 4px;
+}
+.quote-remove:hover { color: #B96B6B; }
+
+/* ---------- Доступ к библиотеке ---------- */
+.shares-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+.share-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+.share-item .btn-icon.danger { width: auto; height: auto; }
+.shares-empty { color: var(--text-light); font-size: 13px; }
+
+.badge-readonly { background: var(--surface-2); color: var(--text-light); }
+.like-btn { background: var(--pink); color: #8A2F55; }
+.like-btn:hover { background: var(--pink-dark); }
 
 /* ---------- Тост-уведомление ---------- */
 .toast {
