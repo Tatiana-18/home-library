@@ -1,8 +1,40 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{userId}/books/{bookId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+    // Публичный справочник email -> uid, нужен только чтобы находить
+    // пользователя по email при выдаче доступа к библиотеке.
+    match /usersByEmail/{email} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && request.resource.data.uid == request.auth.uid;
+      allow delete: if false;
+    }
+
+    // Книги владельца: сам владелец — читает и пишет,
+    // те, кому открыт доступ (см. shares) — только читают.
+    match /users/{ownerId}/books/{bookId} {
+      allow read: if request.auth != null &&
+        (request.auth.uid == ownerId ||
+         exists(/databases/$(database)/documents/users/$(ownerId)/shares/$(request.auth.uid)));
+      allow write: if request.auth != null && request.auth.uid == ownerId;
+    }
+
+    // Список тех, кому владелец открыл доступ на просмотр.
+    match /users/{ownerId}/shares/{viewerId} {
+      allow read: if request.auth != null && (request.auth.uid == ownerId || request.auth.uid == viewerId);
+      allow write: if request.auth != null && request.auth.uid == ownerId;
+    }
+
+    // Зеркальная запись у того, кому открыли доступ — чтобы он видел,
+    // какие библиотеки ему доступны.
+    match /users/{targetId}/sharedWithMe/{ownerId} {
+      allow read: if request.auth != null && request.auth.uid == targetId;
+      allow write: if request.auth != null && request.auth.uid == ownerId;
+    }
+
+    // Список желаний — полностью приватный, только владелец.
+    match /users/{uid}/wishlist/{wishId} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
     }
   }
 }
