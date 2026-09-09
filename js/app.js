@@ -829,6 +829,7 @@ function renderBooks() {
 
   emptyState.classList.toggle('hidden', allBooks.length > 0);
   bookGrid.classList.toggle('view-list', viewMode === 'list');
+  bookGrid.querySelectorAll('.skeleton-card').forEach(el => el.remove());
 
   if (isMine && !hasAnimatedPageEntrance) {
     hasAnimatedPageEntrance = true;
