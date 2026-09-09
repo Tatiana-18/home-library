@@ -3,7 +3,7 @@ import { firebaseConfig } from './firebase-config.js';
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
   getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword,
-  sendPasswordResetEmail, onAuthStateChanged, signOut
+  sendPasswordResetEmail, onAuthStateChanged, signOut, updateProfile
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, setDoc, getDoc,
@@ -13,6 +13,10 @@ import {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+
+if (typeof gsap !== 'undefined' && typeof Flip !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
+  gsap.registerPlugin(Flip, ScrollTrigger);
+}
 
 let currentUser = null;
 let allBooks = [];
@@ -24,6 +28,10 @@ let unsubscribeItems = null;
 let unsubscribeShares = null;
 let unsubscribeSharedWithMe = null;
 let unsubscribeWishlist = null;
+
+const bookCardEls = new Map(); // id -> постоянный DOM-узел карточки (нужно для GSAP Flip)
+let gridScrollCtx = null;      // gsap.context() для ScrollTrigger-реакций сетки книг
+let hasAnimatedPageEntrance = false;
 
 // currentView: {type:'mine'} | {type:'wishlist'} | {type:'shared', ownerUid, ownerEmail}
 let currentView = { type: 'mine' };
@@ -54,7 +62,7 @@ function toggleTheme() {
   const next = current === 'dark' ? 'light' : 'dark';
   if (typeof gsap !== 'undefined' && !prefersReducedMotion()) {
     gsap.timeline()
-      .to(document.body, { opacity: 0.6, duration: 0.12, ease: 'power1.in' })
+      .to(document.body, { opacity: 0.6, duration: 0.12, ease: 'power1.in', overwrite: 'auto' })
       .call(() => applyTheme(next))
       .to(document.body, { opacity: 1, duration: 0.18, ease: 'power1.out' });
   } else {
@@ -86,6 +94,11 @@ const emptyAddBtn = document.getElementById('empty-add-btn');
 const greetingTitle = document.getElementById('greeting-title');
 const greetingSubtitle = document.getElementById('greeting-subtitle');
 const greetingBlock = document.getElementById('greeting-block');
+const editNameBtn = document.getElementById('edit-name-btn');
+const nameModal = document.getElementById('name-modal');
+const nameForm = document.getElementById('name-form');
+const displayNameInput = document.getElementById('display-name-input');
+const nameCancelBtn = document.getElementById('name-cancel-btn');
 const readingShelf = document.getElementById('reading-shelf');
 const readingShelfRow = document.getElementById('reading-shelf-row');
 const searchInput = document.getElementById('search-input');
@@ -356,6 +369,7 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     appScreen.classList.add('hidden');
     loginScreen.classList.remove('hidden');
+    tabLogin.click();
     loginForm.reset();
     registerForm.reset();
     loginError.textContent = '';
@@ -364,6 +378,11 @@ onAuthStateChanged(auth, async (user) => {
     if (unsubscribeShares) unsubscribeShares();
     if (unsubscribeSharedWithMe) unsubscribeSharedWithMe();
     if (unsubscribeWishlist) unsubscribeWishlist();
+    if (gridScrollCtx) { gridScrollCtx.revert(); gridScrollCtx = null; }
+    if (typeof gsap !== 'undefined') gsap.killTweensOf(bookGrid.querySelectorAll('.book-card'));
+    bookCardEls.clear();
+    bookGrid.innerHTML = '';
+    hasAnimatedPageEntrance = false;
     allBooks = [];
     allWishlist = [];
     sharesList = [];
@@ -413,6 +432,8 @@ function subscribeCurrentView() {
   updateToolbarForView();
   emptyState.classList.add('hidden');
   bookGrid.classList.remove('view-list');
+  if (gridScrollCtx) { gridScrollCtx.revert(); gridScrollCtx = null; }
+  bookCardEls.clear();
   bookGrid.innerHTML = skeletonGridHtml(6);
 
   if (currentView.type === 'wishlist') {
@@ -623,7 +644,7 @@ const HOUR_GREETING = () => {
 };
 
 function renderGreeting() {
-  const name = (currentUser.email || '').split('@')[0];
+  const name = (currentUser.displayName || '').trim() || (currentUser.email || '').split('@')[0];
   greetingTitle.textContent = `${HOUR_GREETING()}${name ? ', ' + name : ''}`;
   const total = allBooks.length;
   const lent = allBooks.filter(b => b.status === 'lent').length;
@@ -633,6 +654,27 @@ function renderGreeting() {
   if (overdue > 0) subtitle += ` · ${overdue} просрочено`;
   greetingSubtitle.textContent = subtitle;
 }
+
+editNameBtn.addEventListener('click', () => {
+  displayNameInput.value = currentUser.displayName || '';
+  showModal(nameModal);
+  displayNameInput.focus();
+});
+nameCancelBtn.addEventListener('click', () => hideModal(nameModal));
+
+nameForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const value = displayNameInput.value.trim();
+  try {
+    await updateProfile(currentUser, { displayName: value });
+    renderGreeting();
+    hideModal(nameModal);
+    showToast(value ? 'Имя сохранено' : 'Имя сброшено');
+  } catch (err) {
+    console.error(err);
+    showToast('Не удалось сохранить имя');
+  }
+});
 
 function pluralBooks(n) {
   const mod10 = n % 10, mod100 = n % 100;
@@ -651,19 +693,35 @@ function renderReadingShelf() {
 }
 
 const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const motionOK = () => typeof gsap !== 'undefined' && !prefersReducedMotion();
 
-function animateEntrance() {
-  if (typeof gsap === 'undefined' || prefersReducedMotion()) return;
-  gsap.fromTo([greetingBlock, '.stats-strip'].filter(el => el && !(el.classList && el.classList.contains('hidden'))),
-    { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.45, ease: 'power2.out', stagger: 0.06 });
-  const cards = bookGrid.querySelectorAll('.book-card');
-  if (cards.length) {
-    gsap.fromTo(cards, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out', stagger: Math.min(0.04, 0.3 / cards.length) });
+// ---------- Единый вход на страницу (выполняется один раз после логина) ----------
+function animatePageEntrance() {
+  if (!motionOK()) return;
+  const topbarEl = document.querySelector('.topbar');
+  const statItems = document.querySelectorAll('.stat-item');
+
+  const tl = gsap.timeline();
+  tl.fromTo('#app-screen', { opacity: 0 }, { opacity: 1, duration: 0.35, ease: 'power1.out' }, 0);
+  if (topbarEl) tl.fromTo(topbarEl, { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' }, 0.05);
+  if (greetingBlock && !greetingBlock.classList.contains('hidden')) {
+    tl.fromTo(greetingBlock, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' }, 0.16);
   }
+  if (statItems.length) {
+    tl.fromTo(statItems, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.35, ease: 'power2.out', stagger: 0.06 }, 0.24);
+  }
+  return tl;
 }
 
+// ---------- Появление карточек при обычной перерисовке (не на каждый рендер целиком, только новые карточки) ----------
+function animateEnteringCards(els) {
+  if (!motionOK() || !els.length) return;
+  gsap.fromTo(els, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out', stagger: Math.min(0.035, 0.3 / els.length) });
+}
+
+// ---------- Счётчики статистики ----------
 function animateCounters() {
-  if (typeof gsap === 'undefined' || prefersReducedMotion()) return;
+  if (!motionOK()) return;
   [statTotal, statLent, statAvailable, statOverdue].forEach(el => {
     const target = Number(el.textContent) || 0;
     const obj = { v: 0 };
@@ -671,19 +729,71 @@ function animateCounters() {
   });
 }
 
+// ---------- Hover-взаимодействие карточки (subtle: y -4, обложка scale 1.03) ----------
+function attachCardHoverMotion(card) {
+  const getCoverTarget = () => card.querySelector('.book-cover-wrap img, .cover-placeholder svg');
+  card.addEventListener('mouseenter', () => {
+    if (!motionOK()) return;
+    gsap.to(card, { y: -4, duration: 0.28, ease: 'power2.out', overwrite: 'auto' });
+    const cover = getCoverTarget();
+    if (cover) gsap.to(cover, { scale: 1.03, duration: 0.32, ease: 'power2.out', overwrite: 'auto' });
+  });
+  card.addEventListener('mouseleave', () => {
+    if (!motionOK()) return;
+    gsap.to(card, { y: 0, duration: 0.28, ease: 'power2.out', overwrite: 'auto' });
+    const cover = getCoverTarget();
+    if (cover) gsap.to(cover, { scale: 1, duration: 0.32, ease: 'power2.out', overwrite: 'auto' });
+  });
+}
+
+// ---------- Клик по карточке (открытие просмотра / выбор) — вешается один раз на persistent-элемент ----------
+function attachCardClickHandler(card) {
+  card.addEventListener('click', (e) => {
+    if (e.target.closest('button') || e.target.closest('.select-check')) return;
+    const isSharedNow = currentView.type === 'shared';
+    if (selectMode && !isSharedNow) { toggleSelect(card.dataset.id); return; }
+    if (card._book) openViewModal(card._book, isSharedNow);
+  });
+}
+
+// ---------- Плавное появление карточек ниже экрана при скролле большой библиотеки ----------
+function setupCardScrollReveal() {
+  if (gridScrollCtx) { gridScrollCtx.revert(); gridScrollCtx = null; }
+  if (!motionOK() || typeof ScrollTrigger === 'undefined') return;
+  gridScrollCtx = gsap.context(() => {
+    const cards = [...bookGrid.querySelectorAll('.book-card')];
+    ScrollTrigger.batch(cards, {
+      start: 'top 90%',
+      onEnter: (els) => gsap.fromTo(els, { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.35, ease: 'power2.out', stagger: 0.04, overwrite: 'auto' })
+    });
+  });
+}
+
 function showModal(el) {
   el.classList.remove('hidden');
-  if (typeof gsap === 'undefined' || prefersReducedMotion()) return;
+  if (!motionOK()) return;
   const card = el.querySelector('.modal');
   gsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.2, ease: 'power1.out' });
-  if (card) gsap.fromTo(card, { opacity: 0, scale: 0.96, y: 8 }, { opacity: 1, scale: 1, y: 0, duration: 0.28, ease: 'power2.out' });
+  if (card) gsap.fromTo(card, { opacity: 0, scale: 0.96, y: 10 }, { opacity: 1, scale: 1, y: 0, duration: 0.3, ease: 'power2.out' });
 }
 
 function hideModal(el) {
-  if (typeof gsap === 'undefined' || prefersReducedMotion()) { el.classList.add('hidden'); return; }
+  if (!motionOK()) { el.classList.add('hidden'); return; }
   const card = el.querySelector('.modal');
-  gsap.to(el, { opacity: 0, duration: 0.15, ease: 'power1.in', onComplete: () => el.classList.add('hidden') });
-  if (card) gsap.to(card, { opacity: 0, scale: 0.97, duration: 0.15, ease: 'power1.in' });
+  gsap.to(el, { opacity: 0, duration: 0.18, ease: 'power1.in', onComplete: () => el.classList.add('hidden') });
+  if (card) gsap.to(card, { opacity: 0, scale: 0.96, y: 10, duration: 0.18, ease: 'power1.in' });
+}
+
+function bindCardButtons(card, b, isShared) {
+  if (isShared) {
+    card.querySelector(`#like-${b.id}`)?.addEventListener('click', () => toggleLikeFromShared(b));
+  } else {
+    card.querySelector(`#edit-${b.id}`)?.addEventListener('click', () => openEditModal(b));
+    card.querySelector(`#delete-${b.id}`)?.addEventListener('click', () => handleDelete(b));
+    card.querySelector(`#lend-${b.id}`)?.addEventListener('click', () => openLendModal([b.id]));
+    card.querySelector(`#return-${b.id}`)?.addEventListener('click', () => handleReturn(b));
+    card.querySelector(`#check-${b.id}`)?.addEventListener('click', (e) => { e.stopPropagation(); toggleSelect(b.id); });
+  }
 }
 
 function renderBooks() {
@@ -719,31 +829,58 @@ function renderBooks() {
 
   emptyState.classList.toggle('hidden', allBooks.length > 0);
   bookGrid.classList.toggle('view-list', viewMode === 'list');
-  bookGrid.innerHTML = sorted.map(b => bookCardHtml(b, isShared)).join('');
 
+  if (isMine && !hasAnimatedPageEntrance) {
+    hasAnimatedPageEntrance = true;
+    animatePageEntrance();
+  }
+
+  // ---- Flip: снимок текущих позиций карточек ДО перестройки DOM ----
+  const canFlip = typeof Flip !== 'undefined' && motionOK();
+  const existingBefore = [...bookCardEls.values()].filter(el => el.isConnected);
+  const flipState = canFlip && existingBefore.length ? Flip.getState(existingBefore) : null;
+
+  // ---- убираем карточки, которых больше нет в отфильтрованном списке ----
+  const newIds = new Set(sorted.map(b => String(b.id)));
+  for (const [id, el] of [...bookCardEls]) {
+    if (!newIds.has(id)) { el.remove(); bookCardEls.delete(id); }
+  }
+
+  // ---- создаём недостающие карточки, обновляем содержимое, расставляем в нужном порядке ----
+  const enteringEls = [];
   sorted.forEach(b => {
-    if (isShared) {
-      document.getElementById(`like-${b.id}`)?.addEventListener('click', () => toggleLikeFromShared(b));
-    } else {
-      document.getElementById(`edit-${b.id}`)?.addEventListener('click', () => openEditModal(b));
-      document.getElementById(`delete-${b.id}`)?.addEventListener('click', () => handleDelete(b));
-      document.getElementById(`lend-${b.id}`)?.addEventListener('click', () => openLendModal([b.id]));
-      document.getElementById(`return-${b.id}`)?.addEventListener('click', () => handleReturn(b));
-      const check = document.getElementById(`check-${b.id}`);
-      check?.addEventListener('click', (e) => { e.stopPropagation(); toggleSelect(b.id); });
+    const id = String(b.id);
+    let card = bookCardEls.get(id);
+    if (!card) {
+      card = document.createElement('div');
+      card.className = 'book-card';
+      card.dataset.id = id;
+      bookCardEls.set(id, card);
+      enteringEls.push(card);
+      attachCardHoverMotion(card);
+      attachCardClickHandler(card);
     }
-
-    const card = bookGrid.querySelector(`.book-card[data-id="${b.id}"]`);
-    card?.addEventListener('click', (e) => {
-      if (e.target.closest('button') || e.target.closest('.select-check')) return;
-      if (selectMode && !isShared) { toggleSelect(b.id); return; }
-      openViewModal(b, isShared);
-    });
+    card._book = b;
+    card.innerHTML = bookCardInnerHtml(b, isShared);
+    bookGrid.appendChild(card);
+    bindCardButtons(card, b, isShared);
   });
 
+  if (canFlip && flipState) {
+    Flip.from(flipState, {
+      duration: 0.45,
+      ease: 'power2.out',
+      absolute: true,
+      onEnter: els => gsap.fromTo(els, { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.35, ease: 'power2.out', stagger: 0.03 }),
+      onLeave: els => gsap.to(els, { opacity: 0, scale: 0.95, duration: 0.2 })
+    });
+  } else {
+    animateEnteringCards(enteringEls);
+  }
+
   if (isMine) applySelectModeClasses();
-  animateEntrance();
   if (isMine) animateCounters();
+  setupCardScrollReveal();
 }
 
 emptyAddBtn.addEventListener('click', () => addBookBtn.click());
@@ -759,7 +896,7 @@ function starRowHtml(rating) {
   return html;
 }
 
-function bookCardHtml(b, readOnly) {
+function bookCardInnerHtml(b, readOnly) {
   const isLent = b.status === 'lent';
   const overdue = isOverdue(b);
   const isLiked = readOnly && allWishlist.some(w => w.sourceOwnerUid === currentView.ownerUid && w.sourceBookId === b.id);
@@ -787,7 +924,6 @@ function bookCardHtml(b, readOnly) {
       </div>`;
 
   return `
-    <div class="book-card" data-id="${b.id}">
       ${selectCheck}
       ${likeButton}
       <div class="book-cover-wrap">${coverHtml(b.cover)}</div>
@@ -813,8 +949,7 @@ function bookCardHtml(b, readOnly) {
             С ${formatDate(b.lendDate)}${b.dueDate ? ` до ${formatDate(b.dueDate)}` : ''}
           </div>` : ''}
       </div>
-      ${actionsHtml}
-    </div>`;
+      ${actionsHtml}`;
 }
 
 // ---------- Желания ----------
@@ -834,7 +969,7 @@ function renderWishlist() {
     document.getElementById(`wish-remove-${w.id}`)?.addEventListener('click', () => handleWishlistRemove(w.id));
     document.getElementById(`wish-edit-${w.id}`)?.addEventListener('click', () => openWishlistModal(w));
   });
-  animateEntrance();
+  animateEnteringCards([...bookGrid.querySelectorAll('.book-card')]);
 }
 
 function wishCardHtml(w) {
