@@ -221,7 +221,7 @@ function toHttps(url) {
 const READ_STATUS_LABELS = { want: 'Хочу прочитать', reading: 'Читаю', done: 'Прочитано' };
 const READ_STATUS_CLASS = { want: 'badge-want', reading: 'badge-reading', done: 'badge-done' };
 
-const COVER_PLACEHOLDER_SVG = `<svg width="34" height="34" viewBox="0 0 24 24" fill="none"><path d="M4 4.5C4 3.67 4.67 3 5.5 3H12V21H5.5C4.67 21 4 20.33 4 19.5V4.5Z" fill="#C9B6E4"/><path d="M12 3H18.5C19.33 3 20 3.67 20 4.5V19.5C20 20.33 19.33 21 18.5 21H12V3Z" fill="#B8E3D8"/></svg>`;
+const COVER_PLACEHOLDER_SVG = `<svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M4 4.5C4 3.67 4.67 3 5.5 3H12V21H5.5C4.67 21 4 20.33 4 19.5V4.5Z" fill="currentColor" opacity="0.35"/><path d="M12 3H18.5C19.33 3 20 3.67 20 4.5V19.5C20 20.33 19.33 21 18.5 21H12V3Z" fill="currentColor" opacity="0.55"/></svg>`;
 const QUOTE_ICON_SVG = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M7 8C5 8 4 9.5 4 11.5C4 13.5 5.3 15 7.2 15C7.2 17 6 18.5 4 19" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 8C14 8 13 9.5 13 11.5C13 13.5 14.3 15 16.2 15C16.2 17 15 18.5 13 19" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 function escapeHtml(str) {
@@ -487,7 +487,7 @@ function renderSharesList() {
     <div class="share-item">
       <span>${escapeHtml(s.viewerEmail || s.id)}</span>
       <button class="btn-icon danger" data-revoke="${s.id}" title="Отозвать доступ">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M6 6L18 18M18 6L6 18" stroke="#B96B6B" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M6 6L18 18M18 6L6 18" stroke="var(--danger)" stroke-width="1.8" stroke-linecap="round"/></svg>
       </button>
     </div>`).join('');
 
@@ -655,8 +655,8 @@ function bookCardHtml(b, readOnly) {
 
   const likeButton = readOnly ? `
       <button class="like-icon-btn ${isLiked ? 'liked' : ''}" id="like-${b.id}" title="${isLiked ? 'Убрать из желаний' : 'Добавить в желания'}">
-        <svg class="heart-outline" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 20C12 20 4 15 4 9.5C4 6.5 6.2 4.5 8.8 4.5C10.2 4.5 11.4 5.2 12 6.2C12.6 5.2 13.8 4.5 15.2 4.5C17.8 4.5 20 6.5 20 9.5C20 15 12 20 12 20Z" stroke="#8A2F55" stroke-width="1.8" stroke-linejoin="round"/></svg>
-        <svg class="heart-filled" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 20C12 20 4 15 4 9.5C4 6.5 6.2 4.5 8.8 4.5C10.2 4.5 11.4 5.2 12 6.2C12.6 5.2 13.8 4.5 15.2 4.5C17.8 4.5 20 6.5 20 9.5C20 15 12 20 12 20Z" fill="#8A2F55"/></svg>
+        <svg class="heart-outline" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 20C12 20 4 15 4 9.5C4 6.5 6.2 4.5 8.8 4.5C10.2 4.5 11.4 5.2 12 6.2C12.6 5.2 13.8 4.5 15.2 4.5C17.8 4.5 20 6.5 20 9.5C20 15 12 20 12 20Z" stroke="var(--danger)" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        <svg class="heart-filled" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 20C12 20 4 15 4 9.5C4 6.5 6.2 4.5 8.8 4.5C10.2 4.5 11.4 5.2 12 6.2C12.6 5.2 13.8 4.5 15.2 4.5C17.8 4.5 20 6.5 20 9.5C20 15 12 20 12 20Z" fill="var(--danger)"/></svg>
       </button>` : '';
 
   const actionsHtml = readOnly ? '' : `
@@ -666,7 +666,7 @@ function bookCardHtml(b, readOnly) {
           ? `<button class="btn btn-secondary" id="return-${b.id}">Вернули</button>`
           : `<button class="btn btn-secondary" id="lend-${b.id}">Выдать</button>`}
         <button class="btn-icon danger" id="delete-${b.id}" title="Удалить">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 7H18M9 7V5C9 4.45 9.45 4 10 4H14C14.55 4 15 4.45 15 5V7M17 7V19C17 19.55 16.55 20 16 20H8C7.45 20 7 19.55 7 19V7H17Z" stroke="#B96B6B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 7H18M9 7V5C9 4.45 9.45 4 10 4H14C14.55 4 15 4.45 15 5V7M17 7V19C17 19.55 16.55 20 16 20H8C7.45 20 7 19.55 7 19V7H17Z" stroke="var(--danger)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
       </div>`;
 
