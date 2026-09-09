@@ -9,9 +9,10 @@
 <link rel="shortcut icon" href="icons/favicon.ico">
 <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#4F46E5">
+<meta name="theme-color" content="#7A4B5E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -84,23 +85,33 @@
       </div>
     </header>
 
-    <div class="stats-row" id="stats-row">
-      <div class="stat-card stat-mint">
+    <div class="greeting" id="greeting-block">
+      <h1 class="greeting-title" id="greeting-title">Добро пожаловать</h1>
+      <p class="greeting-subtitle" id="greeting-subtitle"></p>
+    </div>
+
+    <div class="stats-strip" id="stats-row">
+      <div class="stat-item">
         <span class="stat-value" id="stat-total">0</span>
         <span class="stat-label">Всего книг</span>
       </div>
-      <div class="stat-card stat-peach">
+      <div class="stat-item">
         <span class="stat-value" id="stat-lent">0</span>
         <span class="stat-label">Выдано</span>
       </div>
-      <div class="stat-card stat-blue">
+      <div class="stat-item">
         <span class="stat-value" id="stat-available">0</span>
         <span class="stat-label">В наличии</span>
       </div>
-      <div class="stat-card stat-pink">
+      <div class="stat-item stat-item-danger">
         <span class="stat-value" id="stat-overdue">0</span>
         <span class="stat-label">Просрочено</span>
       </div>
+    </div>
+
+    <div class="reading-shelf hidden" id="reading-shelf">
+      <p class="reading-shelf-label">Сейчас читаю</p>
+      <div class="reading-shelf-row" id="reading-shelf-row"></div>
     </div>
 
     <div class="toolbar">
@@ -141,8 +152,10 @@
     </div>
 
     <div id="empty-state" class="empty-state hidden">
-      <p id="empty-state-text">Пока в вашей библиотеке нет книг.</p>
-      <p>Нажмите «Добавить книгу», чтобы начать каталог.</p>
+      <svg width="72" height="72" viewBox="0 0 24 24" fill="none" class="empty-illustration"><path d="M4 4.5C4 3.67 4.67 3 5.5 3H12V21H5.5C4.67 21 4 20.33 4 19.5V4.5Z" fill="currentColor" opacity="0.15"/><path d="M12 3H18.5C19.33 3 20 3.67 20 4.5V19.5C20 20.33 19.33 21 18.5 21H12V3Z" fill="currentColor" opacity="0.28"/></svg>
+      <p class="empty-title" id="empty-state-text">Пока в вашей библиотеке нет книг</p>
+      <p class="empty-subtitle">Добавьте первую книгу — вручную или по ISBN</p>
+      <button class="btn btn-primary" id="empty-add-btn">Добавить первую книгу</button>
     </div>
 
     <div id="book-grid" class="book-grid"></div>

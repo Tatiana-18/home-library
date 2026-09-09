@@ -31,7 +31,7 @@ let viewMode = localStorage.getItem('viewMode') || 'grid'; // 'grid' | 'list'
 let selectMode = false;
 let selectedIds = new Set();
 
-const GENRE_COLORS = ['--lavender', '--mint', '--peach', '--blue', '--pink'];
+const GENRE_COLORS = ['--accent', '--info', '--success', '--warning', '--danger'];
 
 // ---------- Тема (светлая / тёмная) ----------
 function applyTheme(theme) {
@@ -51,7 +51,15 @@ function applyTheme(theme) {
 
 function toggleTheme() {
   const current = document.documentElement.getAttribute('data-theme');
-  applyTheme(current === 'dark' ? 'light' : 'dark');
+  const next = current === 'dark' ? 'light' : 'dark';
+  if (typeof gsap !== 'undefined' && !prefersReducedMotion()) {
+    gsap.timeline()
+      .to(document.body, { opacity: 0.6, duration: 0.12, ease: 'power1.in' })
+      .call(() => applyTheme(next))
+      .to(document.body, { opacity: 1, duration: 0.18, ease: 'power1.out' });
+  } else {
+    applyTheme(next);
+  }
 }
 
 document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
@@ -74,6 +82,12 @@ const librarySwitcher = document.getElementById('library-switcher');
 const bookGrid = document.getElementById('book-grid');
 const emptyState = document.getElementById('empty-state');
 const emptyStateText = document.getElementById('empty-state-text');
+const emptyAddBtn = document.getElementById('empty-add-btn');
+const greetingTitle = document.getElementById('greeting-title');
+const greetingSubtitle = document.getElementById('greeting-subtitle');
+const greetingBlock = document.getElementById('greeting-block');
+const readingShelf = document.getElementById('reading-shelf');
+const readingShelfRow = document.getElementById('reading-shelf-row');
 const searchInput = document.getElementById('search-input');
 const genreFilter = document.getElementById('genre-filter');
 const statusFilter = document.getElementById('status-filter');
@@ -379,12 +393,27 @@ async function ensureEmailMapping(user) {
 }
 
 // ---------- Подписка на текущий раздел (моя библиотека / желания / чужая библиотека) ----------
+function skeletonGridHtml(n) {
+  let html = '';
+  for (let i = 0; i < n; i++) {
+    html += `<div class="skeleton-card">
+      <div class="skeleton-block skeleton-cover"></div>
+      <div class="skeleton-block skeleton-line"></div>
+      <div class="skeleton-block skeleton-line short"></div>
+    </div>`;
+  }
+  return html;
+}
+
 function subscribeCurrentView() {
   if (unsubscribeItems) unsubscribeItems();
   selectMode = false;
   selectedIds.clear();
   updateBulkBar();
   updateToolbarForView();
+  emptyState.classList.add('hidden');
+  bookGrid.classList.remove('view-list');
+  bookGrid.innerHTML = skeletonGridHtml(6);
 
   if (currentView.type === 'wishlist') {
     renderCurrentView();
@@ -408,6 +437,8 @@ function updateToolbarForView() {
   const isMine = currentView.type === 'mine';
 
   document.getElementById('stats-row').classList.toggle('hidden', !isMine);
+  greetingBlock.classList.toggle('hidden', !isMine);
+  if (!isMine) readingShelf.classList.add('hidden');
   genreFilter.classList.toggle('hidden', isWishlist);
   statusFilter.classList.toggle('hidden', isWishlist);
   readStatusFilter.classList.toggle('hidden', isWishlist);
@@ -474,9 +505,9 @@ shareBtn.addEventListener('click', () => {
   shareStatus.textContent = '';
   shareEmailInput.value = '';
   renderSharesList();
-  shareModal.classList.remove('hidden');
+  showModal(shareModal);
 });
-shareCloseBtn.addEventListener('click', () => shareModal.classList.add('hidden'));
+shareCloseBtn.addEventListener('click', () => hideModal(shareModal));
 
 function renderSharesList() {
   if (sharesList.length === 0) {
@@ -583,6 +614,78 @@ function updateGenreFilterOptions() {
   genreList.innerHTML = genres.map(g => `<option value="${g}">`).join('');
 }
 
+const HOUR_GREETING = () => {
+  const h = new Date().getHours();
+  if (h < 5) return 'Доброй ночи';
+  if (h < 12) return 'Доброе утро';
+  if (h < 18) return 'Добрый день';
+  return 'Добрый вечер';
+};
+
+function renderGreeting() {
+  const name = (currentUser.email || '').split('@')[0];
+  greetingTitle.textContent = `${HOUR_GREETING()}${name ? ', ' + name : ''}`;
+  const total = allBooks.length;
+  const lent = allBooks.filter(b => b.status === 'lent').length;
+  const overdue = allBooks.filter(isOverdue).length;
+  let subtitle = total === 0 ? 'Ваша библиотека пока пуста' : `В вашей библиотеке ${total} ${pluralBooks(total)}`;
+  if (lent > 0) subtitle += ` · ${lent} на руках у друзей`;
+  if (overdue > 0) subtitle += ` · ${overdue} просрочено`;
+  greetingSubtitle.textContent = subtitle;
+}
+
+function pluralBooks(n) {
+  const mod10 = n % 10, mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return 'книга';
+  if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) return 'книги';
+  return 'книг';
+}
+
+function renderReadingShelf() {
+  const reading = allBooks.filter(b => b.readStatus === 'reading');
+  readingShelfRow.innerHTML = reading.map(b => `
+    <div class="shelf-item" title="${escapeHtml(b.title || '')}">
+      <div class="shelf-cover">${coverHtml(b.cover)}</div>
+      <p class="shelf-title">${escapeHtml(b.title || '')}</p>
+    </div>`).join('');
+}
+
+const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function animateEntrance() {
+  if (typeof gsap === 'undefined' || prefersReducedMotion()) return;
+  gsap.fromTo([greetingBlock, '.stats-strip'].filter(el => el && !(el.classList && el.classList.contains('hidden'))),
+    { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.45, ease: 'power2.out', stagger: 0.06 });
+  const cards = bookGrid.querySelectorAll('.book-card');
+  if (cards.length) {
+    gsap.fromTo(cards, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out', stagger: Math.min(0.04, 0.3 / cards.length) });
+  }
+}
+
+function animateCounters() {
+  if (typeof gsap === 'undefined' || prefersReducedMotion()) return;
+  [statTotal, statLent, statAvailable, statOverdue].forEach(el => {
+    const target = Number(el.textContent) || 0;
+    const obj = { v: 0 };
+    gsap.to(obj, { v: target, duration: 0.6, ease: 'power1.out', onUpdate: () => { el.textContent = Math.round(obj.v); } });
+  });
+}
+
+function showModal(el) {
+  el.classList.remove('hidden');
+  if (typeof gsap === 'undefined' || prefersReducedMotion()) return;
+  const card = el.querySelector('.modal');
+  gsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.2, ease: 'power1.out' });
+  if (card) gsap.fromTo(card, { opacity: 0, scale: 0.96, y: 8 }, { opacity: 1, scale: 1, y: 0, duration: 0.28, ease: 'power2.out' });
+}
+
+function hideModal(el) {
+  if (typeof gsap === 'undefined' || prefersReducedMotion()) { el.classList.add('hidden'); return; }
+  const card = el.querySelector('.modal');
+  gsap.to(el, { opacity: 0, duration: 0.15, ease: 'power1.in', onComplete: () => el.classList.add('hidden') });
+  if (card) gsap.to(card, { opacity: 0, scale: 0.97, duration: 0.15, ease: 'power1.in' });
+}
+
 function renderBooks() {
   const searchTerm = searchInput.value.trim().toLowerCase();
   const genre = genreFilter.value;
@@ -608,7 +711,11 @@ function renderBooks() {
     statLent.textContent = allBooks.filter(b => b.status === 'lent').length;
     statAvailable.textContent = allBooks.filter(b => b.status !== 'lent').length;
     statOverdue.textContent = allBooks.filter(isOverdue).length;
+    renderGreeting();
+    renderReadingShelf();
   }
+  greetingBlock.classList.toggle('hidden', !isMine);
+  readingShelf.classList.toggle('hidden', !isMine || allBooks.filter(b => b.readStatus === 'reading').length === 0);
 
   emptyState.classList.toggle('hidden', allBooks.length > 0);
   bookGrid.classList.toggle('view-list', viewMode === 'list');
@@ -635,7 +742,11 @@ function renderBooks() {
   });
 
   if (isMine) applySelectModeClasses();
+  animateEntrance();
+  if (isMine) animateCounters();
 }
+
+emptyAddBtn.addEventListener('click', () => addBookBtn.click());
 
 function starRowHtml(rating) {
   if (!rating) return '';
@@ -683,17 +794,19 @@ function bookCardHtml(b, readOnly) {
       <div>
         <p class="book-title">${escapeHtml(b.title || '')}</p>
         <p class="book-author">${escapeHtml(b.author || '')}</p>
-        ${bookMetaHtml(b)}
         ${starRowHtml(b.rating)}
-        <div class="badge-row">
-          ${b.genre ? `<span class="badge badge-genre">${escapeHtml(b.genre)}</span>` : ''}
-          ${b.shelf ? `<span class="badge badge-shelf">${escapeHtml(b.shelf)}</span>` : ''}
-          ${readOnly ? '' : `<span class="badge ${isLent ? 'badge-lent' : 'badge-available'}">${isLent ? 'Выдано' : 'В наличии'}</span>`}
-          ${overdue && !readOnly ? `<span class="badge badge-overdue">Просрочено</span>` : ''}
-          ${b.readStatus ? `<span class="badge ${READ_STATUS_CLASS[b.readStatus]}">${READ_STATUS_LABELS[b.readStatus]}</span>` : ''}
-          ${b.quotes && b.quotes.length ? `<span class="badge badge-quotes">${QUOTE_ICON_SVG} ${b.quotes.length}</span>` : ''}
+        <div class="card-reveal">
+          ${bookMetaHtml(b)}
+          <div class="badge-row">
+            ${b.genre ? `<span class="badge badge-genre">${escapeHtml(b.genre)}</span>` : ''}
+            ${b.shelf ? `<span class="badge badge-shelf">${escapeHtml(b.shelf)}</span>` : ''}
+            ${readOnly ? '' : `<span class="badge ${isLent ? 'badge-lent' : 'badge-available'}">${isLent ? 'Выдано' : 'В наличии'}</span>`}
+            ${overdue && !readOnly ? `<span class="badge badge-overdue">Просрочено</span>` : ''}
+            ${b.readStatus ? `<span class="badge ${READ_STATUS_CLASS[b.readStatus]}">${READ_STATUS_LABELS[b.readStatus]}</span>` : ''}
+            ${b.quotes && b.quotes.length ? `<span class="badge badge-quotes">${QUOTE_ICON_SVG} ${b.quotes.length}</span>` : ''}
+          </div>
+          ${b.notes ? `<p class="book-notes">${escapeHtml(b.notes)}</p>` : ''}
         </div>
-        ${b.notes ? `<p class="book-notes">${escapeHtml(b.notes)}</p>` : ''}
         ${isLent && !readOnly ? `
           <div class="lend-info ${overdue ? 'overdue' : ''}">
             Взял(а): <b>${escapeHtml(b.borrower || '')}</b><br>
@@ -721,6 +834,7 @@ function renderWishlist() {
     document.getElementById(`wish-remove-${w.id}`)?.addEventListener('click', () => handleWishlistRemove(w.id));
     document.getElementById(`wish-edit-${w.id}`)?.addEventListener('click', () => openWishlistModal(w));
   });
+  animateEntrance();
 }
 
 function wishCardHtml(w) {
@@ -747,7 +861,7 @@ addBookBtn.addEventListener('click', () => {
   }
 });
 
-wishlistCancelBtn.addEventListener('click', () => wishlistModal.classList.add('hidden'));
+wishlistCancelBtn.addEventListener('click', () => hideModal(wishlistModal));
 
 function openWishlistModal(item) {
   wishlistForm.reset();
@@ -761,7 +875,7 @@ function openWishlistModal(item) {
     wishlistModalTitle.textContent = 'Добавить в желания';
     wishlistIdInput.value = '';
   }
-  wishlistModal.classList.remove('hidden');
+  showModal(wishlistModal);
 }
 
 wishlistForm.addEventListener('submit', async (e) => {
@@ -784,7 +898,7 @@ wishlistForm.addEventListener('submit', async (e) => {
       });
       showToast('Добавлено в желания');
     }
-    wishlistModal.classList.add('hidden');
+    hideModal(wishlistModal);
   } catch (err) {
     console.error(err);
     showToast('Не удалось сохранить');
@@ -997,17 +1111,17 @@ function openViewModal(book, readOnly) {
   }
 
   viewEditBtn.classList.toggle('hidden', readOnly);
-  viewModal.classList.remove('hidden');
+  showModal(viewModal);
 }
 
-viewCloseBtn.addEventListener('click', () => viewModal.classList.add('hidden'));
+viewCloseBtn.addEventListener('click', () => hideModal(viewModal));
 viewEditBtn.addEventListener('click', () => {
-  viewModal.classList.add('hidden');
+  hideModal(viewModal);
   if (viewedBook) openEditModal(viewedBook);
 });
 
 // ---------- Добавление / редактирование книги ----------
-bookCancelBtn.addEventListener('click', () => bookModal.classList.add('hidden'));
+bookCancelBtn.addEventListener('click', () => hideModal(bookModal));
 
 function openAddModal() {
   bookModalTitle.textContent = 'Добавить книгу';
@@ -1019,7 +1133,7 @@ function openAddModal() {
   setStarRating(0);
   quotesDraft = [];
   renderQuotes();
-  bookModal.classList.remove('hidden');
+  showModal(bookModal);
 }
 
 function openEditModal(book) {
@@ -1041,7 +1155,7 @@ function openEditModal(book) {
   quotesDraft = Array.isArray(book.quotes) ? [...book.quotes] : [];
   renderQuotes();
   isbnStatus.textContent = '';
-  bookModal.classList.remove('hidden');
+  showModal(bookModal);
 }
 
 bookForm.addEventListener('submit', async (e) => {
@@ -1078,7 +1192,7 @@ bookForm.addEventListener('submit', async (e) => {
       });
       showToast('Книга добавлена');
     }
-    bookModal.classList.add('hidden');
+    hideModal(bookModal);
   } catch (err) {
     console.error(err);
     showToast('Не удалось сохранить книгу');
@@ -1220,10 +1334,10 @@ function openLendModal(bookIds) {
   lendModalTitle.textContent = bookIds.length > 1 ? `Выдать книги (${bookIds.length})` : 'Выдать книгу';
   lendForm.reset();
   lendDateInput.value = todayIso();
-  lendModal.classList.remove('hidden');
+  showModal(lendModal);
 }
 
-lendCancelBtn.addEventListener('click', () => lendModal.classList.add('hidden'));
+lendCancelBtn.addEventListener('click', () => hideModal(lendModal));
 
 lendForm.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -1236,7 +1350,7 @@ lendForm.addEventListener('submit', async (e) => {
   };
   try {
     await Promise.all(ids.map(id => updateDoc(doc(db, 'users', currentUser.uid, 'books', id), payload)));
-    lendModal.classList.add('hidden');
+    hideModal(lendModal);
     selectMode = false;
     selectedIds.clear();
     selectModeBtn.textContent = 'Выбрать';
@@ -1266,9 +1380,9 @@ async function handleReturn(book) {
 // ---------- Статистика по жанрам ----------
 statsBtn.addEventListener('click', () => {
   renderStatsChart();
-  statsModal.classList.remove('hidden');
+  showModal(statsModal);
 });
-statsCloseBtn.addEventListener('click', () => statsModal.classList.add('hidden'));
+statsCloseBtn.addEventListener('click', () => hideModal(statsModal));
 
 function renderStatsChart() {
   const counts = {};
