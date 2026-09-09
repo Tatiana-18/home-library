@@ -90,6 +90,7 @@ const librarySwitcher = document.getElementById('library-switcher');
 const bookGrid = document.getElementById('book-grid');
 const emptyState = document.getElementById('empty-state');
 const emptyStateText = document.getElementById('empty-state-text');
+const emptyStateSubtitle = document.getElementById('empty-state-subtitle');
 const emptyAddBtn = document.getElementById('empty-add-btn');
 const greetingTitle = document.getElementById('greeting-title');
 const greetingSubtitle = document.getElementById('greeting-subtitle');
@@ -446,7 +447,14 @@ function subscribeCurrentView() {
       updateGenreFilterOptions();
       renderCurrentView();
     }, (error) => {
-      console.error(error);
+      console.error('Ошибка подписки на книги:', error.code || error.message || error);
+      bookGrid.querySelectorAll('.skeleton-card').forEach(el => el.remove());
+      bookCardEls.clear();
+      allBooks = [];
+      emptyStateText.textContent = currentView.type === 'shared'
+        ? 'Не удалось загрузить эту библиотеку — возможно, доступ был отозван или ещё не вступил в силу.'
+        : 'Не удалось загрузить вашу библиотеку. Проверьте соединение и попробуйте обновить страницу.';
+      emptyState.classList.remove('hidden');
       showToast(currentView.type === 'shared' ? 'Нет доступа к этой библиотеке' : 'Ошибка загрузки данных из Firestore');
     });
   }
@@ -472,6 +480,11 @@ function updateToolbarForView() {
   emptyStateText.textContent = isWishlist
     ? 'В списке желаний пока пусто.'
     : (isShared ? 'В этой библиотеке пока нет книг.' : 'Пока в вашей библиотеке нет книг.');
+  emptyStateSubtitle.textContent = isWishlist
+    ? 'Добавляйте книги вручную или лайком из чужой библиотеки.'
+    : 'Добавьте первую книгу — вручную или по ISBN';
+  emptyStateSubtitle.classList.toggle('hidden', isShared);
+  emptyAddBtn.classList.toggle('hidden', isShared);
 }
 
 librarySwitcher.addEventListener('change', () => {
