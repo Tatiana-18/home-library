@@ -32,6 +32,7 @@ let unsubscribeWishlist = null;
 const bookCardEls = new Map(); // id -> постоянный DOM-узел карточки (нужно для GSAP Flip)
 let gridScrollCtx = null;      // gsap.context() для ScrollTrigger-реакций сетки книг
 let hasAnimatedPageEntrance = false;
+let activeFlipTween = null;    // ссылка на текущую Flip-анимацию, чтобы не допустить наложения
 
 // currentView: {type:'mine'} | {type:'wishlist'} | {type:'shared', ownerUid, ownerEmail}
 let currentView = { type: 'mine' };
@@ -380,6 +381,7 @@ onAuthStateChanged(auth, async (user) => {
     if (unsubscribeSharedWithMe) unsubscribeSharedWithMe();
     if (unsubscribeWishlist) unsubscribeWishlist();
     if (gridScrollCtx) { gridScrollCtx.revert(); gridScrollCtx = null; }
+    if (activeFlipTween) { activeFlipTween.kill(); activeFlipTween = null; }
     if (typeof gsap !== 'undefined') gsap.killTweensOf(bookGrid.querySelectorAll('.book-card'));
     bookCardEls.clear();
     bookGrid.innerHTML = '';
@@ -434,6 +436,7 @@ function subscribeCurrentView() {
   emptyState.classList.add('hidden');
   bookGrid.classList.remove('view-list');
   if (gridScrollCtx) { gridScrollCtx.revert(); gridScrollCtx = null; }
+  if (activeFlipTween) { activeFlipTween.kill(); activeFlipTween = null; }
   bookCardEls.clear();
   bookGrid.innerHTML = skeletonGridHtml(6);
 
@@ -852,6 +855,20 @@ function renderBooks() {
   // ---- Flip: снимок текущих позиций карточек ДО перестройки DOM ----
   const canFlip = typeof Flip !== 'undefined' && motionOK();
   const existingBefore = [...bookCardEls.values()].filter(el => el.isConnected);
+
+  // Если предыдущая анимация перестановки карточек ещё не завершилась (например,
+  // Firestore прислал обновление данных раньше, чем доиграла анимация от предыдущего) -
+  // останавливаем её и убираем временные inline-стили абсолютного позиционирования,
+  // которые GSAP Flip выставляет на время анимации. Без этого карточка может
+  // навсегда "застрять" со старыми координатами и размером.
+  if (activeFlipTween) {
+    activeFlipTween.kill();
+    activeFlipTween = null;
+  }
+  if (existingBefore.length && typeof gsap !== 'undefined') {
+    gsap.set(existingBefore, { clearProps: 'position,top,left,width,height,margin,transform' });
+  }
+
   const flipState = canFlip && existingBefore.length ? Flip.getState(existingBefore) : null;
 
   // ---- убираем карточки, которых больше нет в отфильтрованном списке ----
@@ -881,12 +898,13 @@ function renderBooks() {
   });
 
   if (canFlip && flipState) {
-    Flip.from(flipState, {
+    activeFlipTween = Flip.from(flipState, {
       duration: 0.45,
       ease: 'power2.out',
       absolute: true,
       onEnter: els => gsap.fromTo(els, { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.35, ease: 'power2.out', stagger: 0.03 }),
-      onLeave: els => gsap.to(els, { opacity: 0, scale: 0.95, duration: 0.2 })
+      onLeave: els => gsap.to(els, { opacity: 0, scale: 0.95, duration: 0.2 }),
+      onComplete: () => { activeFlipTween = null; }
     });
   } else {
     animateEnteringCards(enteringEls);
