@@ -901,7 +901,6 @@ function renderBooks() {
     activeFlipTween = Flip.from(flipState, {
       duration: 0.45,
       ease: 'power2.out',
-      absolute: true,
       onEnter: els => gsap.fromTo(els, { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.35, ease: 'power2.out', stagger: 0.03 }),
       onLeave: els => gsap.to(els, { opacity: 0, scale: 0.95, duration: 0.2 }),
       onComplete: () => { activeFlipTween = null; }
