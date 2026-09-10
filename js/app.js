@@ -33,6 +33,7 @@ const bookCardEls = new Map(); // id -> постоянный DOM-узел кар
 let gridScrollCtx = null;      // gsap.context() для ScrollTrigger-реакций сетки книг
 let hasAnimatedPageEntrance = false;
 let activeFlipTween = null;    // ссылка на текущую Flip-анимацию, чтобы не допустить наложения
+let lastViewMode = null;       // чтобы не запускать Flip при смене сетка/список - это не переупорядочивание, а другая раскладка
 
 // currentView: {type:'mine'} | {type:'wishlist'} | {type:'shared', ownerUid, ownerEmail}
 let currentView = { type: 'mine' };
@@ -844,6 +845,8 @@ function renderBooks() {
   readingShelf.classList.toggle('hidden', !isMine || allBooks.filter(b => b.readStatus === 'reading').length === 0);
 
   emptyState.classList.toggle('hidden', allBooks.length > 0);
+  const viewModeChanged = lastViewMode !== null && lastViewMode !== viewMode;
+  lastViewMode = viewMode;
   bookGrid.classList.toggle('view-list', viewMode === 'list');
   bookGrid.querySelectorAll('.skeleton-card').forEach(el => el.remove());
 
@@ -853,7 +856,11 @@ function renderBooks() {
   }
 
   // ---- Flip: снимок текущих позиций карточек ДО перестройки DOM ----
-  const canFlip = typeof Flip !== 'undefined' && motionOK();
+  // Важно: Flip применяется только когда раскладка (сетка/список) НЕ менялась в этом
+  // рендере. При смене вида карточки радикально меняют форму (узкая колонка <-> строка
+  // на всю ширину) ещё до снятия "снимка до", поэтому Flip получает уже искажённые
+  // координаты и считает смещения неверно - именно это вызывало разъезжание карточек.
+  const canFlip = typeof Flip !== 'undefined' && motionOK() && !viewModeChanged;
   const existingBefore = [...bookCardEls.values()].filter(el => el.isConnected);
 
   // Если предыдущая анимация перестановки карточек ещё не завершилась (например,
